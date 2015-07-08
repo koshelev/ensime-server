@@ -14,20 +14,29 @@ object EnsimeBuild extends Build with JdkResolver {
    https://github.com/sbt/sbt/issues/1890
    */
 
+  def scalaModules(scalaV: String) = CrossVersion.partialVersion(scalaV) match {
+    // if scala 2.11+ is used, add dependency on scala-xml module
+    case Some((2, scalaMajor)) if scalaMajor >= 11 =>
+      Seq( "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
+        "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
+      )
+    case _ =>
+      Seq.empty[ModuleID]
+  }
+
   ////////////////////////////////////////////////
   // common
   lazy val basicSettings = Seq(
     organization := "org.ensime",
-    scalaVersion := "2.11.7",
+    scalaVersion := "2.10.5",
     version := "0.9.10-SNAPSHOT",
 
     dependencyOverrides ++= Set(
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
       "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
       "org.slf4j" % "slf4j-api" % "1.7.12",
       "com.google.guava" % "guava" % "18.0"
-    )
+    ) ++ scalaModules( scalaVersion.value )
   )
   val isEmacs = sys.env.get("TERM") == Some("dumb")
 
@@ -108,7 +117,17 @@ object EnsimeBuild extends Build with JdkResolver {
   ////////////////////////////////////////////////
   // common dependencies
   lazy val pimpathon = "com.github.stacycurl" %% "pimpathon-core" % "1.5.0"
-  lazy val shapeless = "com.chuusai" %% "shapeless" % "2.2.4"
+
+  def macroParadise( scalaV : String ) = CrossVersion.partialVersion(scalaV) match {
+    // if scala 2.11+ is used, add dependency on scala-xml module
+    case Some((2, scalaMajor)) if scalaMajor >= 11 =>
+      Nil
+    case _ =>
+      compilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full) :: Nil
+  }
+
+  def shapeless(scalaV: String) : Seq[ModuleID] = "com.chuusai" %% "shapeless" % "2.2.4" :: macroParadise( scalaV )
+
   lazy val logback = Seq(
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.slf4j" % "jul-to-slf4j" % "1.7.12",
@@ -145,11 +164,10 @@ object EnsimeBuild extends Build with JdkResolver {
     libraryDependencies ++= Seq(
       // losing scala-reflect dep would be good
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-      shapeless,
       "org.parboiled" %% "parboiled-scala" % "1.1.7",
       pimpathon,
       "com.google.guava" % "guava" % "18.0" % "test"
-    ) ++ testLibs(scalaVersion.value)
+    ) ++ shapeless(scalaVersion.value) ++ testLibs(scalaVersion.value)
   )
 
   lazy val api = Project("api", file("api"), settings = commonSettings) settings (
@@ -167,7 +185,7 @@ object EnsimeBuild extends Build with JdkResolver {
     libraryDependencies ++= Seq(
       "com.github.fommil" %% "spray-json-shapeless" % "1.0.0",
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
-    ) ++ testLibs(scalaVersion.value)
+    ) ++ macroParadise(scalaVersion.value) ++ testLibs(scalaVersion.value)
   )
 
   // the S-Exp protocol
@@ -178,7 +196,7 @@ object EnsimeBuild extends Build with JdkResolver {
   ) settings (
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
-    ) ++ testLibs(scalaVersion.value)
+    ) ++ macroParadise(scalaVersion.value) ++ testLibs(scalaVersion.value)
   )
 
   lazy val testingEmpty = Project("testingEmpty", file("testing/empty"), settings = basicSettings).settings(
@@ -236,11 +254,9 @@ object EnsimeBuild extends Build with JdkResolver {
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
       "org.scala-refactoring" %% "org.scala-refactoring.library" % "0.6.2",
-      // refactoring has an old version of scala-xml
-      "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
       "commons-lang" % "commons-lang" % "2.6",
       "commons-io" % "commons-io" % "2.4" % "test,it"
-    ) ++ logback ++ testLibs(scalaVersion.value, "it,test")
+    ) ++ scalaModules(scalaVersion.value) ++ macroParadise(scalaVersion.value) ++ logback ++ testLibs(scalaVersion.value, "it,test")
   )
 
   lazy val server = Project("server", file("server")).dependsOn(
@@ -261,7 +277,7 @@ object EnsimeBuild extends Build with JdkResolver {
     unmanagedJars in Compile += JavaTools,
     libraryDependencies ++= Seq(
       "io.spray" %% "spray-can" % "1.3.3"
-    ) ++ testLibs(scalaVersion.value, "it,test")
+    ) ++ macroParadise(scalaVersion.value) ++ testLibs(scalaVersion.value, "it,test")
   )
 
   // manual root project so we can exclude the testing projects from publication

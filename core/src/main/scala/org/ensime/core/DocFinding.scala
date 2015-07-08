@@ -59,8 +59,8 @@ trait DocFinding { self: RichPresentationCompiler =>
 
   private def signatureString(sym: Symbol, java: Boolean): String = {
     sym.nameString + (if (java) {
-      if (sym.paramLists.isEmpty) ""
-      else sym.paramLists.flatMap(_.map { sym => javaFqn(sym.tpe).mkString }).mkString("(", ", ", ")")
+      if (sym.paramss.isEmpty) ""
+      else sym.paramss.flatMap(_.map { sym => javaFqn(sym.tpe).mkString }).mkString("(", ", ", ")")
     } else sym.signatureString.replaceAll("[\\s]", ""))
   }
 

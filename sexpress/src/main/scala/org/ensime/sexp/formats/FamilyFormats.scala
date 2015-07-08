@@ -13,10 +13,7 @@ import org.ensime.sexp._
  *
  * Boilerplate blocked on https://github.com/milessabin/shapeless/issues/238
  */
-trait FamilyFormats {
-  case class TypeHint[T](hint: SexpSymbol)
-  implicit def typehint[T: TypeTag]: TypeHint[T] =
-    TypeHint(SexpSymbol(":" + typeOf[T].dealias.toString.replaceAll("\\.type$", "").split("(\\.|\\$)").last))
+trait FamilyFormats extends TypeHintSupport {
 
   // always serialises to Nil, and is differentiated by the TraitFormat
   // scala names https://github.com/milessabin/shapeless/issues/256
